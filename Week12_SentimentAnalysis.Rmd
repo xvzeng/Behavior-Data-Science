@@ -1,6 +1,6 @@
 ---
 title: "Week12 HW"
-author: "Xiaoqiao Vivian Zeng"
+author: "Vivian Zeng"
 date: "11/5/2020"
 output: html_document
 ---
