@@ -1,0 +1,439 @@
+---
+title: "Final Project"
+author: "Xiaoqiao Zeng, Tao Tang, Ashish Gupta"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r include=FALSE}
+#Hide all output
+knitr::opts_chunk$set(error = FALSE,     # suppress errors
+                      message = FALSE,   # suppress messages
+                      warning = FALSE,   # suppress warnings
+                      results = 'hide',  # suppress code output
+                      echo = TRUE,       # suppress code
+                      fig.show = 'hide') # suppress plot
+```
+
+# Introduction
+
+```{r}
+#Loading libraries
+library(tidyverse)
+library(psych)
+library(ggplot2)
+library(ggcorrplot)
+library(GPArotation)
+library(tidyr)
+library(foreign) 
+library(MuMIn) 
+library(haven) 
+library(scales)
+library(poLCA)
+library(tidytext)
+library(sentimentr)
+library(wordcloud2)
+library(dplyr)
+library(parallel)
+library(stm)
+library(tm)
+```
+
+
+```{r}
+#load the data
+dat<-read.table('SFO_survey_withText.txt', header=TRUE)
+```
+
+
+# Part A
+
+## Hypothesis/Hypotheses 1 
+
+### Prepare the dataset
+```{r}
+# Subset the items based on customerns' satisfication survey. 
+subQ<- dat %>% 
+  dplyr::select(Q6N) %>% 
+  na_if(., 6) %>% 
+  na_if(., 0) # Replace 0 and 6 to NAs.
+
+subQ19<- dat %>% 
+  dplyr::select(Q19) %>% 
+  na_if(., 5) %>% 
+  na_if(., 0) # Replace 0 and 5 to NAs.
+
+# Combine the items with demographics, get the data ready
+HP1<- dat %>% 
+  dplyr::select(Q17, Q18) %>% 
+  cbind(., subQ19, subQ)%>% 
+  na_if(., 0) %>% # Replace 0 and 8 to NAs
+  na_if(., 8) 
+colnames(HP1)<- c("age", "gender", "income", "rating")
+```
+
+### EDA
+```{r}
+str(HP1)
+summary(HP1)
+```
+
+```{r}
+distribution <- lapply(names(HP1), function(var_x) {
+  p <- ggplot(HP1) +
+    aes_string(var_x)
+  if(is.numeric(HP1[[var_x]])) {
+    p <- p + geom_histogram(adjust = 1, 
+                          fill="#87CEFA", 
+                          color="#cfcfcf")
+    } else {
+    p <- p + geom_bar()
+    }})
+cowplot::plot_grid(plotlist = distribution)
+```
+
+### LCA analysis
+```{r}
+lcaFormula = cbind(age, gender, income, rating) ~ 1
+```
+
+```{r}
+#Analyze if responses to these questions can effectively group the users by 1 class.
+set.seed(2020)
+lca1Classes = poLCA(lcaFormula,
+                    HP1,
+                    nclass = 1,
+                    maxiter = 5000,
+                    tol = 1e-6,
+                    nrep = 1,
+                    verbose = F)
+lca1Classes
+plot(lca1Classes)
+```
+
+```{r}
+#Analyze if responses to these questions can effectively group the users by 2 classes.
+set.seed(2020)
+lca2Classes = poLCA(lcaFormula,
+                    HP1,
+                    nclass = 2,
+                    maxiter = 5000,
+                    tol = 1e-6,
+                    nrep = 1,
+                    verbose = F)
+
+lca2Classes
+plot(lca2Classes)
+```
+
+```{r}
+#Analyze if responses to these questions can effectively group the users by 3 classes.
+set.seed(2020)
+lca3Classes = poLCA(lcaFormula,
+                    HP1,
+                    nclass = 3,
+                    maxiter = 5000,
+                    tol = 1e-6,
+                    nrep = 1,
+                    verbose = F)
+lca3Classes
+plot(lca3Classes)
+```
+
+
+```{r}
+#Analyze if responses to these questions can effectively group the users by 4 classes.
+set.seed(2020)
+lca4Classes = poLCA(lcaFormula,
+                    HP1,
+                    nclass = 4,
+                    maxiter = 5000,
+                    tol = 1e-6,
+                    nrep = 1,
+                    verbose = F)
+lca4Classes
+plot(lca4Classes)
+```
+
+```{r}
+#Analyze if responses to these questions can effectively group the users by 5 classes.
+set.seed(2020)
+lca5Classes = poLCA(lcaFormula,
+                    HP1,
+                    nclass = 5,
+                    maxiter = 5000,
+                    tol = 1e-6,
+                    nrep = 1,
+                    verbose = F)
+lca5Classes
+plot(lca5Classes)
+```
+
+```{r}
+cbind((rbind(class2 = lca2Classes$aic,
+             class3 = lca3Classes$aic,
+             class4 = lca4Classes$aic,
+             class5 = lca5Classes$aic)),
+       (rbind(class2 = lca2Classes$bic,
+              class3 = lca3Classes$bic,
+              class4 = lca4Classes$bic,
+              class5 = lca5Classes$bic)))
+```
+
+## Hypothesis/Hypotheses 2 
+
+### Subset the items based on Q6. 
+```{r}
+Q6<- dat %>% 
+  dplyr::select(contains("Q6")) %>% 
+  na_if(., 6) %>% 
+  na_if(., 0) 
+str(Q6)
+```
+
+```{r}
+dfQ6 <- as.data.frame(lapply(Q6, function(Q6){ordered(Q6,
+              levels = c("1", "2", "3", "4", "5"),labels=c(1:5))}))
+
+#Convert the items to numeric values.
+HP2<-as.data.frame(sapply(dfQ6, as.numeric))
+str(HP2)
+summary(HP2)
+```
+
+### EDA
+```{r}
+distribution <- lapply(names(HP2), function(var_x) {
+  p <- ggplot(HP2) +
+    aes_string(var_x)
+  if(is.numeric(HP2[[var_x]])) {
+    p <- p + geom_histogram(adjust = 1, 
+                          fill="#87CEFA", 
+                          color="#cfcfcf")
+    } else {
+    p <- p + geom_bar()
+    }})
+cowplot::plot_grid(plotlist = distribution)
+```
+
+```{r}
+HP2 %>% 
+  cor(., use="complete.obs") %>% 
+  ggcorrplot(type = "lower",
+             outline.col = "white",
+             ggtheme = ggplot2::theme_gray,
+             colors = c("#87CEFA", "white", "#FF7F50"))
+
+```
+
+
+### Determine the number of factors.
+```{r}
+# Use nfactors function
+HP2 %>% nfactors(.)
+```
+The Empirical BIC and sample size adjsusted BIC all suggest 3-5 factors. The Velicer MAP achieves a minimum of 0.04 with 2 factor. We are comfortable interpreting the 3-5 factor model, and will keep an eye on 1- and 2-factor modelsto evaluate if the items represent a single or triple dimension.
+
+```{r}
+# Use parallel analysis
+HP2 %>% fa.parallel(., fa="fa", n.iter=100)
+```
+
+```{r}
+#scree plot
+HP2 %>% scree(., pc=F) 
+```
+The Parallel Analysis, BIC, and Scree Plot all indicate about 2-5 factors, indicating the dimension of items could be reduced but may not able to represent a single dimension and if they can be aggregated into a single score. I am comfortable interpreting the 1 to 5-factor models to see the details of dimension reduction.
+
+### Creat factor models
+```{r}
+# Compare the 1, 2, 3, 4, 5  factor solutions. 
+fact1<-HP2%>% fa(., nfactors=1, rotate="promax") 
+fact2<-HP2%>% fa(., nfactors=2)
+fact3<-HP2%>% fa(., nfactors=3) 
+fact4<-HP2%>% fa(., nfactors=4) 
+fact5<-HP2%>% fa(., nfactors=5) 
+```
+
+### Compare model summarys
+```{r}
+# Compare loadings
+print('1 factor loading:')
+fact1$loadings
+print('2 factors loading:')
+fact2$loadings
+print('3 factors loading:') 
+fact3$loadings
+print('4 factor loading:')
+fact4$loadings
+print('5 factor loading:')
+fact5$loadings
+```
+
+### Check the communalities and uniquenesses
+```{r}
+## print communalities and uniquenesses 
+print('1 factor')
+cbind(h2=fact1$communalities,u2=(1-fact1$communalities))
+
+print('2 factors')
+cbind(h2=fact2$communalities,u2=(1-fact2$communalities))
+
+print('3 factors')
+cbind(h2=fact3$communalities,u2=(1-fact3$communalities))
+
+print('4 factors')
+cbind(h2=fact4$communalities,u2=(1-fact4$communalities))
+
+print('5 factors')
+cbind(h2=fact5$communalities,u2=(1-fact5$communalities))
+
+```
+It appears that the 3 factor solutions makes sense. Adding a 4th factor reduce the ability to explain the variance. This is seen from the low-to-moderate loadings for items that also have stronger loadings on the other factors. A 3-factor model is the best overall, and has a clean interpretation. The correlated 3-factor model accounts for a large degree of variance in all of the items (h2). We can feel very confident in the 3-factor model with factor correlations.
+
+### Visualize the models
+```{r}
+fa.diagram(fact1, main="1 Factors Analysis")
+fa.diagram(fact2, main="2 Factors Analysis")
+fa.diagram(fact3, main="3 Factors Analysis")
+fa.diagram(fact4, main="4 Factors Analysis")
+fa.diagram(fact5, main="5 Factors Analysis")
+```
+### We go with 3 factors. 
+Factor 1 (Q6G,Q6H, Q6F, Q6E, Q6D) presents information and signs inside SFO;
+Factor 2 (Q6L,Q6J,Q6M,Q6K,Q6I) presents infomation and facilities outside SFO, like commute, parking and rental car;
+Factor 3 (Q6B,Q6C,Q6A,Q6N) presents facilities inside SFO.
+
+
+## Hypothesis/Hypotheses 3 
+
+```{r}
+HP3<-dat %>% 
+  dplyr::select(CCGID, TERM, Q7_text_All) %>%
+  ungroup() %>%
+  mutate(Q7_text = unlist(.$Q7_text_All),  
+         Q7_text = gsub("[[:punct:]]", "", .$Q7_text)) %>% 
+  filter(Q7_text_All!= "")
+```
+
+
+```{r}
+sam_dat <- get_sentences(HP3)
+sam_dat
+```
+
+
+```{r}
+samSent1 <- sentiment(sam_dat, polarity_dt = lexicon::hash_sentiment_jockers_rinker)
+samSent1
+samSent1[order(-sentiment),]
+rbind(head(samSent1[order(-sentiment),]) %>% dplyr::select(Q7_text, sentiment),
+      tail(samSent1[order(-sentiment),]) %>% dplyr::select(Q7_text, sentiment))
+```
+
+```{r}
+samSent2 <- sentiment(sam_dat, polarity_dt = lexicon::hash_sentiment_nrc)
+samSent2
+samSent2[order(-sentiment),]
+rbind(head(samSent2[order(-sentiment),]) %>% dplyr::select(Q7_text, sentiment),
+      tail(samSent2[order(-sentiment),]) %>% dplyr::select(Q7_text, sentiment))
+```
+
+
+```{r}
+sam_dat %>% 
+  unnest_tokens(tbl = ., output = word, input = Q7_text) %>%
+  anti_join(get_stopwords()) %>% 
+  count(word, sort = TRUE)
+```
+
+```{r}
+sam_dat %>% unnest_tokens(tbl = ., output = word, input = Q7_text) %>%
+  anti_join(get_stopwords()) %>% 
+  count(word, sort = TRUE) %>% 
+  filter(n > 5) %>% 
+  na.omit() %>% 
+  wordcloud2(shape = "cardioid",shuffle=F)
+```
+
+
+# Part B
+
+```{r}
+#Process the data
+sfoDat <- textProcessor(documents=dat$Q7_text_All, metadata = dat)
+```
+
+
+```{r}
+#Prep the data
+sfoPrep <- prepDocuments(documents=sfoDat$documents,
+                         vocab = sfoDat$vocab,
+                         meta = sfoDat$meta)
+```
+
+```{r}
+#find the best number of topics
+kTest <- searchK(documents = sfoPrep$documents,
+                 vocab = sfoDat$vocab,
+                 K=c(3,4,5,6), verbose=FALSE, cores = 5)
+plot(kTest)
+```
+We can settle with 5 topics based on the output above.
+```{r}
+top5 <- stm(documents = sfoPrep$documents,
+            vocab = sfoPrep$vocab,
+            K=5, verbose = FALSE)
+labelTopics(top5)
+```
+Let’s focus on the frex words (they occur frequently within the topic and are exclusive to that topic) and the highest probability words (i.e., the words that have the highest probability of occurring within that topic). The Lift and Score words (just a few different ways of weighting occurrence) can be useful, but are a bit less intuitive than the other two.
+
+Let’s put some names to the topics.
+Topic 1: "Take too long get to airport and crowded" - commute to airport
+Topic 2: "Positive comment about facilities" -Facilities
+Topic 3: "Long and inefficient security custom line and information display" - Security Custom
+Topic 4: "Need better unique shops" -Shops & Restaurant
+Topic 5: "Confusing signage inside airport" -Signage
+
+
+```{r}
+#Plot the top 5 topics with most frequently words
+plot(top5)
+```
+
+
+```{r}
+plot(top5, type='labels')
+```
+
+```{r}
+plot(top5, type='perspectives', topics = c(4,1))
+```
+
+
+```{r}
+plot(topicCorr(top5))
+```
+No correlated relationship among these 5 topics
+
+
+```{r}
+#We can look at statements that have a high probability of being associated with each topic. This presents documents that are representative of each topic.
+findThoughts(top5, texts = sfoPrep$meta$Q7_text_All, n=2)
+```
+
+```{r}
+#Topic 4 word count
+cloud(top5,topic = 4)
+```
+
+
+```{r}
+#Topic 5 word count
+cloud(top5,topic = 5)
+```
+
+
+
+ 
