@@ -1,6 +1,6 @@
 ---
 title: "Week13 HW"
-author: "Xiaoqiao Vivian Zeng"
+author: "Vivian Zeng"
 date: "11/15/2020"
 output:
   pdf_document: default
