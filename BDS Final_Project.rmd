@@ -1,6 +1,6 @@
 ---
 title: "Final Project"
-author: "Xiaoqiao Zeng, Tao Tang, Ashish Gupta"
+author: "Vivian Zeng, Tao Tang, Ashish Gupta"
 output:
   pdf_document: default
   html_document: default
