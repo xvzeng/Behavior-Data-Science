@@ -1,0 +1,89 @@
+---
+title: "Week 13 Warmup"
+author: "Xiaoqiao Vivian Zeng"
+date: "11/2/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(tidytext)
+library(sentimentr)
+```
+
+```{r}
+load("week13.RData")
+```
+
+Look at the data
+```{r}
+glimpse(week13)
+```
+Unlist the column
+```{r}
+week13Tidy = week13 %>% 
+  dplyr::select(id, manager, describeManager) %>% 
+  ungroup() %>%
+  mutate(describeManager = unlist(.$describeManager), 
+         describeManager = gsub("^c\\(|\\)$", "", .$describeManager)) 
+```
+
+Get a sentiment by employees
+```{r}
+# Assign sentiment scores
+employeeSentiment = week13Tidy %>%
+  unnest_tokens(tbl = ., output = word, input = describeManager) %>% 
+  group_by(id) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  count(sentiment) %>% 
+  spread(sentiment, n, fill = 0) %>% #n: counts of the each possible sentiment scores
+  mutate(sentiment = positive - negative) # count of positive minus negative
+
+employeeSentiment
+```
+Get a sentiment by managers
+```{r}
+# Calculate average sentiment from words and score
+managerSentiment = week13Tidy %>%
+  unnest_tokens(tbl = ., output = word, input = describeManager) %>% 
+  group_by(manager, id) %>% 
+  inner_join(get_sentiments("bing")) %>% # bing: binary assignemnt positive or neagive
+  # NRC: positive, negative, anger, etc.
+  # AFINN: numerid assignment from -5 to r
+  # loughrn: positive, negative, litigious, etc. for leagels
+  count(sentiment) %>% 
+  spread(sentiment, n, fill = 0) %>% 
+  group_by(manager) %>% 
+  summarize(meanNegative = mean(negative), 
+            meanPositive = mean(positive), 
+            sentiment = meanPositive - meanNegative)
+
+managerSentiment
+```
+
+
+
+Take a look at a few words offered to our highest and lowest manager:
+
+```{r}
+worstManager = managerSentiment$manager[which.min(managerSentiment$sentiment)]
+bestManager = managerSentiment$manager[which.max(managerSentiment$sentiment)]
+week13$describeManager[week13$manager == worstManager][sample(1:5, 1)]
+```
+
+```{r}
+library(lexicon)
+socal_google = sentiment(week13Tidy$describeManager, polarity_dt = lexicon::hash_sentiment_socal_google)
+```
+
+```{r}
+week13Tidy %>% 
+  mutate(element_id = 1:nrow(.)) %>% 
+  left_join(., socal_google, by = "element_id") %>% 
+  group_by(manager) %>% 
+  summarize(meanSent = mean(sentiment))
+```
+One person is still clearly horrible, the manager who has the highest sentiment has changed.
