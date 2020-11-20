@@ -1,0 +1,74 @@
+---
+title: "Week12 HW"
+author: "Xiaoqiao Vivian Zeng"
+date: "11/5/2020"
+output: html_document
+---
+```{r}
+library(dplyr)
+library(tidyr)
+library(tidytext)
+library(sentimentr)
+library(tidyverse)
+library(tm)
+library(lexicon)
+library(magrittr)
+library(wordcloud2)
+```
+
+# Explorethe final statements and preprocess. 
+
+## Subset the data
+```{r}
+dat<- read.csv("BDS-W13-W15-txEx-DataSet.csv")
+df <- dat %>% 
+  select(correctedStatements, inmateNumber) 
+```
+
+## Data cleaning and text prep
+remove empty sentences
+```{r}
+df2 <- filter(df, correctedStatements!= "")
+
+df2$correctedStatements[89]
+df2$correctedStatements[116]
+```
+I see some meaningless strings like \x96 and \x85 embedded in some statements, for example, statement #89 and #116. We need to remove them.
+
+## Remove the meaningless/misleading symbols or strings
+```{r}
+# Remove \x96 and \x85
+df2$correctedStatements <- 
+  as.character(df2$correctedStatements) %>% 
+  stringr::str_remove("<96>") %>% 
+  stringr::str_remove("<85>")
+```
+
+
+```{r}
+dftidy<-df2 %>% 
+  ungroup() %>%
+  mutate(correctedStatements = unlist(.$correctedStatements),
+         correctedStatements = gsub("[[:punct:]]", "", .$correctedStatements))
+```
+
+## Organize the data into sentence structure by using "sentimentr" package
+```{r}
+senti_dat2 <- get_sentences(dftidy)
+senti_dat2
+```
+
+# Sentiment Analysis
+```{r}
+senti2 <- sentiment(senti_dat2)
+senti2
+```
+
+
+```{r}
+senti2[order(-sentiment),]
+```
+
+
+
+
