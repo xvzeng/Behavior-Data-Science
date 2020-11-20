@@ -1,0 +1,97 @@
+---
+title: "Week13 HW"
+author: "Xiaoqiao Vivian Zeng"
+date: "11/15/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r}
+library(dplyr)
+library(tidyr)
+library(tidytext)
+library(sentimentr)
+library(tidyverse)
+library(tm)
+library(lexicon)
+library(magrittr)
+library(stm)
+library(wordcloud2)
+library(igraph)
+library(wordcloud)
+```
+
+# Explorethe final statements and preprocess. 
+
+## Subset the data
+```{r}
+dat<- read.csv("BDS-W13-W15-txEx-DataSet.csv")
+df <- dat %>% 
+  dplyr::select(correctedStatements, inmateNumber) 
+```
+
+## Preprocess
+```{r}
+textdat<-textProcessor(documents = df$correctedStatements, metadata = df)
+```
+
+```{r}
+textPrep <- prepDocuments(documents = textdat$documents, 
+                               vocab = textdat$vocab,
+                               meta = textdat$meta)
+```
+
+# Find best number of topics
+```{r}
+kTest = searchK(documents = textPrep$documents, 
+                vocab = textPrep$vocab, 
+                K = 3:8, verbose = FALSE, cores=5)
+```
+
+
+```{r}
+plot(kTest)
+```
+Considering the higher (less negative) held-out likelihood, the smaller residuals (or closest to 1), the larger (less negative) semantic coherence, we can estimate 6 as the best number of the topics.
+
+## Unconditional 6 topic model
+```{r}
+top6<-stm(documents = textPrep$documents, 
+              vocab = textPrep$vocab, 
+              K = 6, verbose = FALSE)
+
+labelTopics(top6)
+```
+
+# Visualize the topics
+```{r}
+plot(top6)
+plot(top6, type="labels")
+plot(top6, type="perspectives", topics=c(2,3))
+plot(top6, type="perspectives", topics=c(1,4))
+plot(topicCorr(top6)) # requires install package 'igraph'
+cloud(top6, topic = 4)
+cloud(top6, topic = 6)
+```
+
+```{r}
+topic1_thought<-findThoughts(top6, texts = textPrep$meta$correctedStatements, topics=4, n=2)$docs[[1]]
+plotQuote(topic1_thought, width=50, main="Topic1")
+```
+
+##  Interpret the underlying themes of each topic
+We are able to get intuitive information to extract the following possible top 6 topics:
+Topic 1: "feel sorry and pray to god for forgiveness".
+Topic 2: "I did not know, I didn't want"
+Topic 3: "I want to say sorry to everybody for what I have done"
+Topic 4: "People will get right"
+Topic 5: "Would like to thank my family"
+Topic 6: "Tell my family I always love them"
+
+## Summary
+Apparently, topic 1 is with the highest expected proportions based on praying for gorgiveness. The second one is topic 5, appreciating the families. All the 6 topics are independent with each other without any overlap content. The extracted top 6 topics provide us more concrete concepts, which are consistent with and explaining the meaning of keywords extracted from sentiment analysis. However, such semi-unsupervised learning algorithm starts with a fixed k value (number of topics). Prior to analysis, the number of topics is manually specified by us. Although the determination is based on statistical diagnostic values by sampling, it is still subjective and can’t always find out the true distribution of topics.
+
+
+
+
+
