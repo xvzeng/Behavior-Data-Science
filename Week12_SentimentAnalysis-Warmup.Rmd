@@ -1,6 +1,6 @@
 ---
 title: "Week 13 Warmup"
-author: "Xiaoqiao Vivian Zeng"
+author: "Vivian Zeng, U of Notre Dame"
 date: "11/2/2020"
 output:
   pdf_document: default
