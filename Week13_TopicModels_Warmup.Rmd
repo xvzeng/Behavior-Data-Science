@@ -1,6 +1,6 @@
 ---
 title: "Week13_Warmup"
-author: "Vivian Zeng"
+author: "Vivian Zeng, U of Notre Dame"
 date: "11/10/2020"
 output: html_document
 ---
